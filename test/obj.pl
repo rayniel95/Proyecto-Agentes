@@ -1,0 +1,1 @@
+ :-haz_corral(P, table_dim(5, 6), 3, L).
