@@ -8,7 +8,8 @@
 % necesiten menos argumentos
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% test %%%%%%%%%%%%%%%%%%%%%%%%%
-robot(4, 7, _, _).
+robot(4, 7, yo, true).
+robot(3, 7, tu, false).
 dirty(4, 7).
 jail(4, 7).
 
@@ -230,7 +231,7 @@ make_ran_point(F, A, Term):- generate(Xp, Yp), functor(Term, F, A), init_point(T
 % en la lista L
 % L:list
 % T:term
-point_not_in([], T).
+point_not_in([], _).
 point_not_in([X|R], T):- arg(1, X, X0), arg(2, X, Y0), not((arg(1, T, X0), arg(2, T, Y0))),
     point_not_in(R, T).
 
@@ -244,7 +245,7 @@ point_not_in([X|R], T):- arg(1, X, X0), arg(2, X, Y0), not((arg(1, T, X0), arg(2
 % R:list
 % T:functor, obligatory
 % A:int, obligatory
-ran_uniq_disj_point(L, 0, [], T, A).
+ran_uniq_disj_point(_, 0, [], _, _).
 ran_uniq_disj_point(L, 1, [P], T, A):- make_ran_point(T, A, P), point_not_in(L, P), !.
 ran_uniq_disj_point(L, K, [P|R], T, A):- K1 is K-1, ran_uniq_disj_point(L, K1, R, T, A),
     make_ran_point(T, A, P), point_not_in(L, P), not(member(P, R)).
@@ -255,7 +256,7 @@ add_to_db([]).
 add_to_db([X|R]):- assertz(X), add_to_db(R).
 
 
-make_dirt_(X, Y, L, 0).
+make_dirt_(_, _, _, 0).
 make_dirt_(X, Y, L, K):- select_ran_item(L, Dir), select(Dir, R, L),
     mov_gradient(X, Y, Xn, Yn, Dir), ((is_valid_for_dirt(Xn, Yn), dirt(Xn, Yn)); true),
     K1 is K-1, make_dirt_(X, Y, R, K1).
@@ -266,7 +267,7 @@ make_dirt(X, Y, K):- make_dirt_(X, Y, [arriba, abajo, izquierda, derecha, arriba
 
 
 
-count_elem_(X, Y, [], Term, 0).
+count_elem_(_, _, [], _, 0).
 count_elem_(X, Y, [Dir], Term, K):- K is 0, mov_gradient(X, Y, Xn, Yn, Dir),
     not(exist_point(Term, Xn, Yn)), !.
 count_elem_(X, Y, [Dir], Term, K):- K is 1, mov_gradient(X, Y, Xn, Yn, Dir),
@@ -279,10 +280,21 @@ count_elem(X, Y, F, K):- count_elem_(X, Y, [arriba, abajo, izquierda, derecha,
     arriba_izquierda, arriba_derecha, abajo_izquierda, abajo_derecha], F, K).
 
 
-exist_point(Term, X, Y):- functor(Term, F, A), functor(Term2, F, A),
-    init_point(Term2, X, Y), Term2.
+exist_point(Term, X, Y):- functor(Term, F, A), functor(Term2, F, A), init_point(Term2, X, Y), Term2.
 
 % Para obtener una direccion aleatoria para hacer que el robot camine
 % rand_direction(D):- select_ran_item([arriba, abajo, izquierda, derecha], D).
 
+init_robot(Id):- not(robot(_,_,Id,_)), make_ran_point(robot, 4, R), init_ag(R, Id), arg(4, R, false), add_to_db([R]).
+
+get_new_coord(X,Y,Xn,Yn):- findall([Xn,Yn], valid_point(X,Y,Xn,Yn), V), get_new_coord(Xn, Yn, V).
+get_new_coord(Xn, Yn, L):- random_member([Xn,Yn], L).
+% get_new_coord(Xn,Yn,L):- select_ran_item(L, [Xn,Yn]).
+% get_new_coord(Xn,Yn,L):- select(_, L, R), get_new_coord(Xn,Yn,R).
+    
+mov_robot(X, Y, Id, C):- robot(X, Y, Id, C), get_new_coord(X,Y,Xn,Yn), mov_robot(Id,X,Y,Xn,Yn), !.
+
+mov_robot(Id,X,Y,Xn,Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,C)), assertz(robot(Xn,Yn,Id,C)).
+
+test(X):- random_member(X, [1,2,3,4,5,6,7,8,9]).
 
