@@ -176,7 +176,8 @@ mov_boy_(X, Y, Dir):- mov_gradient(X, Y, Xn, Yn, Dir), is_valid_for_boy(Xn, Yn),
 % Yp:int, obligatory
 % Xr:int
 % Yr:int
-valid_point(Xp, Yp, Xr, Yr):- (mov_gradient(Xp, Yp, Xr, Yr, abajo), in_table(Xr, Yr));
+valid_point(Xp, Yp, Xr, Yr):- 
+    (mov_gradient(Xp, Yp, Xr, Yr, abajo), in_table(Xr, Yr));
     (mov_gradient(Xp, Yp, Xr, Yr, arriba), in_table(Xr, Yr));
     (mov_gradient(Xp, Yp, Xr, Yr, izquierda), in_table(Xr, Yr));
     (mov_gradient(Xp, Yp, Xr, Yr, derecha), in_table(Xr, Yr)).
@@ -295,28 +296,66 @@ init_robot(Id):- not(robot(_,_,Id,_)), make_ran_point(robot, 4, R), init_ag(R, I
 % Yn: la nueva coordenada Y
 get_new_coord(X,Y,Xn,Yn):- findall([A,B], valid_point(X,Y,A,B), V), random_permutation(V, P), nth0(_, P, [Xn,Yn]).
 
+% Un método valid point para cuando el robot tiene a un niño cargado
+% Aqui solo se considera dar 1 o 2 pasos, si se dan 2 solo se dan en la misma dirrección que el anterior
+% Funciona igual que el valid_point
+valid_point_2(X,Y,Xn,Yn):- 
+    (mov_gradient(X, Y, Xn, Yn, arriba), in_table(Xn, Yn));
+    (mov_gradient(X, Y, A, B, arriba), mov_gradient(A, B, Xn, Yn, arriba), in_table(Xn, Yn));
+    (mov_gradient(X, Y, Xn, Yn, abajo), in_table(Xn, Yn)); 
+    (mov_gradient(X, Y, A, B, abajo), mov_gradient(A, B, Xn, Yn, abajo), in_table(Xn, Yn));
+    (mov_gradient(X, Y, Xn, Yn, izquierda), in_table(Xn, Yn)); 
+    (mov_gradient(X, Y, A, B, izquierda), mov_gradient(A, B, Xn, Yn, izquierda), in_table(Xn, Yn));
+    (mov_gradient(X, Y, Xn, Yn, derecha), in_table(Xn, Yn));
+    (mov_gradient(X, Y, A, B, derecha), mov_gradient(A, B, Xn, Yn, derecha), in_table(Xn, Yn)).
+
+% Un get_new_coord para cuando el robot carga a un niño
+% esta implementación solo camina recto, no da la posibilidad de caminar en diagonal
+% get_new_coord_2(X,Y,Xn,Yn):- findall([A,B], valid_point_2(X,Y,A,B), V), random_permutation(V, P), nth0(_,P,[Xn,Yn]).
+% get_more_coords(L, R):- maplist(Goal, List1, List2, List3, List4)
+
+% get_new_coord_2(X,Y,Xn,Yn):- findall([A,B], valid_point(X,Y,A,B), V), 
+%    V1 is valid_point, append(V, V2, V1).
+separate_coord([X,Y],R):- findall([A,B], get_new_coord(X,Y,A,B), R).
+
+plain_list([],[]).
+plain_list([I],R):- append([],I,R).
+plain_list([I|L],R):- plain_list(L,X), append(I,X,R).
+
+get_2_steps_coord(X,Y,Xn,Yn):- findall([A,B], get_new_coord(X,Y,A,B), V), maplist(separate_coord(),V,R),
+    plain_list(R,Dirs), random_permutation(Dirs, Rand), nth0(_, Rand, [Xn,Yn]).
+
 % Busca una casilla a la que el robot pueda moverse, da fail si no se puede mover a ninguna casilla.
 % No retorna nada, solo mueve al robot si triunfa
 % X : obligatorio. Posición X del robot
 % Y : obligatorio. Posición Y del robot
 % Id: obligatorio. identificador del robot
-mov_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, _), get_new_coord(X,Y,Xn,Yn), mov_robot(Id,X,Y,Xn,Yn), !.
-mov_robot(Id,X,Y,Xn,Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,C)), assertz(robot(Xn,Yn,Id,C)), !.
+mov_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, ''), get_new_coord(X, Y, Xn, Yn), mov_bot(Id, X, Y, Xn, Yn), !.
+mov_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, C), not(C = ''), get_2_steps_coord(X, Y, Xn, Yn), mov_bot(Id, X, Y, Xn, Yn), !.
+mov_bot(Id, X, Y, Xn, Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,_)), assertz(robot(Xn,Yn,Id,_)), !.
+    
 
 % El robot que esté en la casilla (X, Y) recogerá al niño que esté en esa misma casilla. 
 % El niño dejará de estar localizable en la casilla (X, Y). Falla si falta alguna de estas condiciones
 % X : obligatorio
 % Y : obligatorio
-pickup_boy(X, Y):- robot(X, Y, _, ""), boy(X, Y, BoyName), retract(boy(X, Y, BoyName)), 
-                   retract(robot(X,Y,Id,"")), assert(robot(X,Y,Id,BoyName)), !.
+pickup_boy(X, Y):- robot(X, Y, _, ''), boy(X, Y, BoyName), retract(boy(X, Y, BoyName)), 
+                   retract(robot(X,Y,Id,'')), assert(robot(X,Y,Id,BoyName)), !.
 
 % El robot en la casilla (X, Y) dejará al niño que carga en la casilla (X,Y).
 % Falla si falta alguna de las condiciones requeridas
 % X : obligatorio
 % Y : obligatorio
 drop_boy(X, Y):- robot(X,Y,_,Boy), not(obj(X,Y)), not(boy(X, Y, _)), assert(boy(X,Y,Boy)), 
-                 retract(robot(X,Y,Id,Boy)), assert(robot(X,Y,Id,"")), !.
+                 retract(robot(X,Y,Id,Boy)), assert(robot(X,Y,Id,'')), !.
 
-act_robot(X,Y,Id):- robot(X,Y,Id,''), dirty(X,Y), clean(X,Y), !.
-act_robot(X,Y,Id):- robot(X,Y,Id,''), mov_robot(X,Y,Id, Xn, Yn), (not(jail(Xn,Yn)), pickup_boy(Xn,Yn); true), !.
-act_robot(X,Y,Id):- robot(X,Y,Id,_), jail(X,Y), not(boy(X,Y,_)), drop_boy(X,Y).
+% Manda a actualizar el estado del robot que se comporta de manera "Random".
+% X :
+% Y :   Todos son obligatorios
+% Id:
+random_act_robot(Id):- robot(X,Y,Id,''), dirty(X,Y), clean(X,Y), !.
+random_act_robot(Id):- robot(X,Y,Id,''), mov_robot(X,Y,Id, Xn, Yn), 
+                           (not(jail(Xn,Yn)), pickup_boy(Xn,Yn); true), !.
+
+random_act_robot(Id):- robot(X,Y,Id,_), jail(X,Y), not(boy(X,Y,_)), drop_boy(X,Y), !.
+random_act_robot(Id):- robot(X,Y,Id,_), mov_robot_with_boy(X,Y,Id,_,_).
