@@ -8,8 +8,8 @@
 % necesiten menos argumentos
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% test %%%%%%%%%%%%%%%%%%%%%%%%%
-robot(4, 7, yo, true).
-robot(3, 7, tu, false).
+robot(4, 7, yo, "some").
+robot(3, 5, tu, "").
 dirty(4, 7).
 jail(4, 7).
 
@@ -28,7 +28,7 @@ boy(2, 2, _).
 boy(1, 0, _).
 boy(4, 2, _).
 boy(4, 4, _).
-boy(3, 5, _).
+boy(3, 5, "boy").
 boy(3, 1, _).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% test %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -282,19 +282,41 @@ count_elem(X, Y, F, K):- count_elem_(X, Y, [arriba, abajo, izquierda, derecha,
 
 exist_point(Term, X, Y):- functor(Term, F, A), functor(Term2, F, A), init_point(Term2, X, Y), Term2.
 
+
 % Para obtener una direccion aleatoria para hacer que el robot camine
 % rand_direction(D):- select_ran_item([arriba, abajo, izquierda, derecha], D).
 
 init_robot(Id):- not(robot(_,_,Id,_)), make_ran_point(robot, 4, R), init_ag(R, Id), arg(4, R, false), add_to_db([R]).
 
-get_new_coord(X,Y,Xn,Yn):- findall([Xn,Yn], valid_point(X,Y,Xn,Yn), V), get_new_coord(Xn, Yn, V).
-get_new_coord(Xn, Yn, L):- random_member([Xn,Yn], L).
-% get_new_coord(Xn,Yn,L):- select_ran_item(L, [Xn,Yn]).
-% get_new_coord(Xn,Yn,L):- select(_, L, R), get_new_coord(Xn,Yn,R).
-    
-mov_robot(X, Y, Id, C):- robot(X, Y, Id, C), get_new_coord(X,Y,Xn,Yn), mov_robot(Id,X,Y,Xn,Yn), !.
+% Obtiene una nueva coordenada posible para moverse teniendo como origen a X,Y
+% X : obligatorio
+% Y : obligatorio
+% Xn: la nueva coordenada X
+% Yn: la nueva coordenada Y
+get_new_coord(X,Y,Xn,Yn):- findall([A,B], valid_point(X,Y,A,B), V), random_permutation(V, P), nth0(_, P, [Xn,Yn]).
 
-mov_robot(Id,X,Y,Xn,Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,C)), assertz(robot(Xn,Yn,Id,C)).
+% Busca una casilla a la que el robot pueda moverse, da fail si no se puede mover a ninguna casilla.
+% No retorna nada, solo mueve al robot si triunfa
+% X : obligatorio. Posición X del robot
+% Y : obligatorio. Posición Y del robot
+% Id: obligatorio. identificador del robot
+mov_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, _), get_new_coord(X,Y,Xn,Yn), mov_robot(Id,X,Y,Xn,Yn), !.
+mov_robot(Id,X,Y,Xn,Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,C)), assertz(robot(Xn,Yn,Id,C)), !.
 
-test(X):- random_member(X, [1,2,3,4,5,6,7,8,9]).
+% El robot que esté en la casilla (X, Y) recogerá al niño que esté en esa misma casilla. 
+% El niño dejará de estar localizable en la casilla (X, Y). Falla si falta alguna de estas condiciones
+% X : obligatorio
+% Y : obligatorio
+pickup_boy(X, Y):- robot(X, Y, _, ""), boy(X, Y, BoyName), retract(boy(X, Y, BoyName)), 
+                   retract(robot(X,Y,Id,"")), assert(robot(X,Y,Id,BoyName)), !.
 
+% El robot en la casilla (X, Y) dejará al niño que carga en la casilla (X,Y).
+% Falla si falta alguna de las condiciones requeridas
+% X : obligatorio
+% Y : obligatorio
+drop_boy(X, Y):- robot(X,Y,_,Boy), not(obj(X,Y)), not(boy(X, Y, _)), assert(boy(X,Y,Boy)), 
+                 retract(robot(X,Y,Id,Boy)), assert(robot(X,Y,Id,"")), !.
+
+act_robot(X,Y,Id):- robot(X,Y,Id,''), dirty(X,Y), clean(X,Y), !.
+act_robot(X,Y,Id):- robot(X,Y,Id,''), mov_robot(X,Y,Id, Xn, Yn), (not(jail(Xn,Yn)), pickup_boy(Xn,Yn); true), !.
+act_robot(X,Y,Id):- robot(X,Y,Id,_), jail(X,Y), not(boy(X,Y,_)), drop_boy(X,Y).
