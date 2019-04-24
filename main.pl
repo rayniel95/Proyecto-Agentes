@@ -355,7 +355,7 @@ boys_actions([boy(X, Y, _)|R]):- (boy(X, Y, _), not(jail(X, Y)),
     mov_boy(X, Y)); boys_actions(R).
 
 
-ag_actions():- robot(_, _, Id, _), random_act_robot(Id), 
+ag_actions():- robot(_, _, Id, _), act_robot(Id), 
     findall(boy(X, Y, _), boy(X, Y, _), L), boys_actions(L).
 
 
@@ -414,7 +414,7 @@ get_2_steps_coord(X, Y, Xn, Yn):- findall([A,B], get_new_coord(X, Y, A, B), V),
 % X : obligatorio. Posición X del robot
 % Y : obligatorio. Posición Y del robot
 % Id: obligatorio. identificador del robot
-mov_rand_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, ''), get_new_coord(X, Y, Xn, Yn), mov_bot(Id, X, Y, Xn, Yn), !.
+mov_rand_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, false), get_new_coord(X, Y, Xn, Yn), mov_bot(Id, X, Y, Xn, Yn), !.
 mov_rand_robot(X, Y, Id, Xn, Yn):- robot(X, Y, Id, C), not(C = ''), get_2_steps_coord(X, Y, Xn, Yn), mov_bot(Id, X, Y, Xn, Yn), !.
 mov_bot(Id, X, Y, Xn, Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robot(X,Y,Id,_)), assertz(robot(Xn,Yn,Id,_)), !.
 
@@ -423,30 +423,39 @@ mov_bot(Id, X, Y, Xn, Yn):- not(obj(Xn,Yn)), not(robot(Xn,Yn,_,_)), retract(robo
 % El niño dejará de estar localizable en la casilla (X, Y). Falla si falta alguna de estas condiciones
 % X : obligatorio
 % Y : obligatorio
-pickup_boy(X, Y):- robot(X, Y, _, ''), boy(X, Y, BoyName), retract(boy(X, Y, BoyName)),
-                   retract(robot(X,Y,Id,'')), assert(robot(X,Y,Id,BoyName)), !.
+pickup_boy(X, Y):- robot(X, Y, _, false), boy(X, Y, BoyName), retract(boy(X, Y, BoyName)),
+                   retract(robot(X,Y,Id,false)), assert(robot(X,Y,Id,BoyName)), !.
 
 % El robot en la casilla (X, Y) dejará al niño que carga en la casilla (X,Y).
 % Falla si falta alguna de las condiciones requeridas
 % X : obligatorio
 % Y : obligatorio
 drop_boy(X, Y):- robot(X,Y,_,Boy), not(obj(X,Y)), not(boy(X, Y, _)), assert(boy(X,Y,Boy)),
-                 retract(robot(X,Y,Id,Boy)), assert(robot(X,Y,Id,'')), !.
+                 retract(robot(X,Y,Id,Boy)), assert(robot(X,Y,Id,false)), !.
 
 % Manda a actualizar el estado del robot que se comporta de manera "Random".
 % X :
 % Y :   Todos son obligatorios
 % Id:
-random_act_robot(Id):- robot(X,Y,Id,''), dirty(X,Y), clean(X,Y), !.
-random_act_robot(Id):- robot(X,Y,Id,''), mov_rand_robot(X,Y,Id, Xn, Yn),
+act_robot(Id):- robot(X,Y,Id,false), dirty(X,Y), clean(X,Y), !.
+act_robot(Id):- robot(X,Y,Id,false), mov_rand_robot(X,Y,Id, Xn, Yn),
                            (not(jail(Xn,Yn)), pickup_boy(Xn,Yn); true), !.
 
-random_act_robot(Id):- robot(X,Y,Id,_), jail(X,Y), not(boy(X,Y,_)), drop_boy(X,Y), !.
-random_act_robot(Id):- robot(X,Y,Id,_), mov_rand_robot(X,Y,Id,_,_).
+act_robot(Id):- robot(X,Y,Id,_), jail(X,Y), (drop_boy(X,Y); true), !.
+act_robot(Id):- robot(X,Y,Id,_), mov_rand_robot(X,Y,Id,_,_).
 
 walk_to_nearest_boy(X,Y,Xn,Yn):- 
     findall([A,B], (boy(A,B,_), not(jail(A,B))), Boys), findall([C,D], obj(C,D), Obstacles), 
     bfs([[X,Y]],Boys,Obstacles,R), nth0(2, R, [Xn,Yn]).
+
+walk_to_nearest_jail(X,Y,Xn,Yn):- 
+    findall([A,B], (jail(A,B), not(boy(A,B,_))), Jails), findall([C,D], obj(C,D), Obstacles), 
+    bfs([[X,Y]], Jails, Obstacles, R), nth0(2,R,[Xn,Yn]).
+
+walk_to_nearest_dirt(X,Y,Xn,Yn):- 
+    findall([A,B], dirty(A,B), Dirts), findall([C,D], obj(C,D), Obstacles),
+    bfs([[X,Y]], Dirts, Obstacles, R), nth0(2,R,[Xn,Yn]).
+    
 
 % Sip, un bfs de toda la vida
 bfs([[X,Y]|_],Targets,_,[X,Y]):- member([X,Y], Targets), !.
@@ -455,17 +464,18 @@ bfs([[X,Y]|R],Targets,Obstacles,L):- assert(visited(X,Y)),
     append(R, OtherPos, Next), bfs(Next, Targets, Obstacles, Z),!, append([[X,Y]], Z, L),
     retract(visited(X,Y)).
 
-act_babysitter_robot(X,Y,Id,Xn,Yn):- 
-
 % este movimiento está hecho para que el robot deje a los niños primero en una casilla de corral
 % y después limpie la casa
 % el resto de la lógica del método es igual que mov_rand_robot
-mov_babysitter_robot(X,Y,Id,Xn,Yn):- robot(X,Y,Id,0), walk_to_nearest_boy(X,Y,Xn,Yn), (boy(Xn,Yn,Boy),
-                                     mov_bot(Id,X,Y,Xn,Yn),
-                                     not(jail(Xn,Yn)), pickup_boy(Xn,Yn); true).
+mov_babysitter_robot(X,Y,Id,Xn,Yn):- robot(X,Y,Id,false), boy(A,B,_), not(jail(A,B)), !, 
+                                     walk_to_nearest_boy(X,Y,Xn,Yn), mov_bot(Id,X,Y,Xn,Yn).
+mov_babysitter_robot(X,Y,Id,Xn,Yn):- robot(X,Y,Id,false), dirty(_,_), walk_to_nearest_dirt(X,Y,Xn,Yn), 
+                                     mov_bot(Id,X,Y,Xn,Yn).
+mov_babysitter_robot(X,Y,Id,Xn,Yn):- robot(X,Y,Id,_), walk_to_nearest_jail(X,Y,Xn,Yn), 
+                                     mov_bot(Id,X,Y,Xn,Yn).
+mov_babysitter_robot(X,Y,_,X,Y):- dirty(X,Y), clean(X,Y).
 
 % Creo que queda claro, imprime el mapa
-
 print_map:- table_dim(F, C), write('  '), CMinus1 is C-1,FMinus1 is F-1,
             forall(between(0,CMinus1,Y), (write(Y), write(' '))), write_ln(""),
             forall(between(0, FMinus1, X), (write(X),write(' '), print_row(X, CMinus1), write_ln(""))).
@@ -481,5 +491,5 @@ print_char(_, _):- write('- ').
 
 % Para probar funcionalidad del robot
 test_robot(0):- print_map.
-test_robot(X):- print_map, random_act_robot(yo), write_ln(""), 
+test_robot(X):- print_map, act_robot(yo), write_ln(""), 
                 Y is X-1, test_robot(Y), !.
