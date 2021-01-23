@@ -1,0 +1,32 @@
+Escenarios:
+30 veces siempre
+
+1- Mapa de 10x33 con 3 niños, 10% de suciedad, 10% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,10,33,3,10,10,600,150).
+
+2- Mapa de 29x42 con 4 niños, 6% de suciedad, 5% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,29,42,4,6,5,600,150).
+
+3- Mapa de 18x48 con 3 niños, 3% de suciedad, 3% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,18,48,3,3,3,600,150).
+
+4- Mapa de 8x15 con 4 niños, 5% de suciedad, 5% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,8,15,4,5,5,600,150).
+
+5- Mapa de 25x9 con 2 niños, 7% de suciedad, 3% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,25,9,2,7,3,600,150).
+
+6- Mapa de 33x10 con 4 niños, 15% de suciedad, 10% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,33,37,4,15,10,600,150).
+
+7- Mapa de 25x22 con 3 niños, 8% de suciedad, 12% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,50,22,4,8,12,600,150).
+
+8- Mapa de 35x30 con 3 niños, 9% de suciedad, 3% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,35,30,3,9,3,600,150).
+
+9- Mapa de 27x14 con 4 niños, 12% de suciedad, 8% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,27,14,4,12,8,600,150).
+
+10- Mapa de 25x25 con 4 niños, 14% de suciedad, 15% de obstáculos, 600 tiempo en total, 150 para cambio
+simulate(30,25,25,4,14,15,600,150).
