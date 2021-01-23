@@ -122,7 +122,7 @@ ag_actions():- (robot(_, _, Id, _), act_robot(Id); true),
 % y menos proclive a errores
 % scheduler
 run(T, T):- true.%, write_ln('Timeout!!!'), !.
-run(T, CT):- T1 is T+1, ag_actions(), %print_map(), write_ln(""),
+run(T, CT):- T1 is T+1, ag_actions(), print_map(), write_ln(""),
     (((is_dirty_house(); total_order()), !, false); true), ((time_(T2), 
     (T1 mod T2)=:=0, boys(Boys), dirties(Dirties), objs(Objs),% write_ln("new env"), 
     remake_points(Boys, Dirties, Objs)); true), run(T1, CT).

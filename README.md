@@ -41,3 +41,9 @@ T cantidad de unidades de tiempo antes de que cambie el entorno
 
 La simulación, sin importar el T introducido, durará siempre 100 unidades de tiempo.
 
+# Version 1.01
+
+Modo verbose activado por defecto.
+
+Nota: si la carga de los archivos environment.pl y utils.pl falla copiar todo el
+codigo al archivo main.pl and it will work.
